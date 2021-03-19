@@ -72,8 +72,9 @@ jobs:
         echo "=====================MANIFEST ORG========================"
         echo $MANIFEST_VAL
         echo "=====================MANIFEST AFTER========================"
-        sed -i 's/ .*$//g;s/\n/ /g' $(basename $MANIFEST_URL)
-        cat $(basename $MANIFEST_URL)
+        MANIFEST_VAL=`sed -e 's/ .*$//g' $(basename $MANIFEST_URL)`
+        MANIFEST_VAL = `echo $MANIFEST_VAL | tr -t '\n' ' '`
+        echo $MANIFEST_VAL
         echo "========================================"
         make info
         echo "========================================"
