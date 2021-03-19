@@ -1,0 +1,84 @@
+name: Openwrt Build Bot
+on:
+  push:
+    branches: main
+  #schedule:
+  #- cron: 0 0 * * 1
+  workflow_dispatch:
+    inputs:
+      name:
+        description: 'Person to greet'
+        required: true
+        default: 'Mona the Octocat'
+      home:
+        description: 'location'
+        required: false
+        default: 'The Octoverse'
+jobs:
+  buildimg:
+    name: Build Openwrt Image
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - PROFILE: netgear_r7800
+          IB_URL: https://downloads.openwrt.org/releases/19.07.7/targets/ipq806x/generic/openwrt-imagebuilder-19.07.7-ipq806x-generic.Linux-x86_64.tar.xz
+          SDK_URL: https://downloads.openwrt.org/releases/19.07.7/targets/ipq806x/generic/openwrt-sdk-19.07.7-ipq806x-generic_gcc-7.5.0_musl_eabi.Linux-x86_64.tar.xz
+          MANIFEST_URL: https://downloads.openwrt.org/releases/19.07.7/targets/ipq806x/generic/openwrt-19.07.7-ipq806x-generic.manifest
+          PACKAGES: luci-ssl luci-app-ddns luci-app-upnp
+          INCLUDE_FILES: true
+        - PROFILE: Generic.x86_64-stable
+          IB_URL: https://downloads.openwrt.org/releases/19.07.7/targets/x86/64/openwrt-imagebuilder-19.07.7-x86-64.Linux-x86_64.tar.xz
+          SDK_URL: https://downloads.openwrt.org/releases/19.07.7/targets/x86/64/openwrt-sdk-19.07.7-x86-64_gcc-7.5.0_musl.Linux-x86_64.tar.xz
+          MANIFEST_URL: https://downloads.openwrt.org/releases/19.07.7/targets/x86/64/openwrt-19.07.7-x86-64-generic.manifest
+          PACKAGES: luci-ssl luci-app-ddns luci-app-upnp
+          INCLUDE_FILES: true
+    steps:
+    - uses: actions/checkout@master
+    - name: Download Openwrt ImageBuilder
+      env:
+        IB_URL: ${{ matrix.IB_URL }}
+      run: |
+        wget $IB_URL
+        tar xf $(basename $IB_URL)
+    - name: Download Openwrt SDK
+      env:
+        SDK_URL: ${{ matrix.SDK_URL }}
+      run: |
+        wget $SDK_URL
+        tar xf $(basename $SDK_URL)
+    - name: Fetch additional package
+      env:
+        IB_URL: ${{ matrix.IB_URL }}
+        SDK_URL: ${{ matrix.SDK_URL }}
+      #if: matrix.INCLUDE_FILES
+      run: |
+        SDK_HOME=$(basename $SDK_URL|head -c -8)
+        git clone -b master https://github.com/mchome/openwrt-vlmcsd $SDK_HOME/package/vlmcsd
+        git clone -b master https://github.com/mchome/luci-app-vlmcsd $SDK_HOME/package/luci-app-vlmcsd
+    - name: complie ImageBuilder
+      env:
+        IB_URL: ${{ matrix.IB_URL }}
+        MANIFEST_URL: ${{ matrix.MANIFEST_URL }}
+        PROFILE: ${{ matrix.PROFILE }}
+        PACKAGES: ${{ matrix.PACKAGES }}
+      run: |
+        IB_HOME=$(basename $IB_URL|head -c -8)
+        echo $IB_HOME
+        cd $IB_HOME
+        wget $MANIFEST_URL
+        MANIFEST_VAL=`cat $(basename $MANIFEST_URL)`
+        echo "=====================MANIFEST ORG========================"
+        echo $MANIFEST_VAL
+        echo "=====================MANIFEST AFTER========================"
+        sed -e 's/ .*\n/ /g' $(basename $MANIFEST_URL)
+        cat $(basename $MANIFEST_URL)
+        echo "========================================"
+        make info
+        echo "========================================"
+        make image PROFILE=$PROFILE PACKAGES="$PACKAGES"
+        echo "========================================"
+        pwd
+        find ./$IB_URL -name "*combined*img*" | xargs -i mv -f {} ~/artifact/
+        find ./$IB_URL -name "*sysupgrade*bin*" | xargs -i mv -f {} ~/artifact/
