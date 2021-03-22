@@ -26,7 +26,7 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get -y install gcc g++ unzip make libncurses-dev mkisofs
-        sudo apt-get -y install tmate
+        sudo apt-get -y install tmux tmate
         sudo apt-get -y dist-upgrade
     - name: Configure SSH
       run: |
