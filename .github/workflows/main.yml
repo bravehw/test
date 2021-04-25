@@ -1,37 +1,34 @@
 name: Openwrt Build Bot
 on:
-  push:
-    branches: main
+  #push:
+  #  branches: main
   #schedule:
   #- cron: 0 0 * * 1
   workflow_dispatch:
-    inputs:
-      name:
-        description: 'Person to greet'
-        required: true
-        default: 'Mona the Octocat'
-      home:
-        description: 'location'
-        required: false
-        default: 'The Octoverse'
 jobs:
   buildimg:
     name: Build Openwrt Image
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      matrix:
+        include:
+        - PROFILE_TAG: ipq806x
+          PROFILE_VERSION: openwrt-19.07
+          DEFINE_STR: CONFIG_TARGET_ipq806x=y,CONFIG_TARGET_ipq806x_generic=y,CONFIG_TARGET_MULTI_PROFILE=y,CONFIG_TARGET_DEVICE_ipq806x_generic_DEVICE_netgear_r7800=y
+          COLLECT_TAG: -name '*factory*' or -name '*sysupgrade*'
     steps:
-    - uses: actions/checkout@master
-    - name: System update
-      run: |
-        sudo apt-get update
-        sudo apt-get -y install gcc g++ unzip make libncurses-dev mkisofs
-        sudo apt-get -y install tmux tmate
-        sudo apt-get -y dist-upgrade
-    - name: Configure SSH
-      run: |
-        sudo mkdir -p ~/.ssh
-        sudo ssh-keygen -t rsa -P "" -f ~/.ssh/id_rsa
-    - name: Run Tmate
-      run: |
-        tmate
+      - name: Sync OpenWRT git source
+        env:
+          PROFILE_VERSION: ${{ matrix.PROFILE_VERSION }}
+        run: |
+          git clone -b $PROFILE_VERSION https://git.openwrt.org/openwrt/openwrt.git
+      - name: Initialization environment
+        env:
+          COLLECT_TAG: ${{ matrix.COLLECT_TAG }}
+        run: |
+          mkdir ~/artifact
+          cmd_str="find ~/openwrt ${COLLECT_TAG} | xargs -i mv -f \{\} ~/artifact"
+          echo ${cmd_str}
+          echo `${cmd_str}`
